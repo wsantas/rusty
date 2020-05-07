@@ -15,7 +15,7 @@ fn main() {
     }
 
     socket
-        .write_message(Message::Text("Hello WebSocket".into()))
+        .write_message(Message::Text("Hello WebSocket @@@@@".into()))
         .unwrap();
     loop {
         let msg = socket.read_message().expect("Error reading message");
