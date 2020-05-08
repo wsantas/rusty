@@ -5,24 +5,39 @@ authors = ["William Santasiero <william.santasiero@aceindustries.com>"]
 edition = "2018"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-tungstenite = "0.10.1"
-env_logger = "0.5.11"
-rusoto_comprehend = "0.43.0"
-google-gmail1 = "*"
+#tungstenite = "0.10.1"
+#env_logger = "0.5.11"
+#rusoto_comprehend = "0.43.0"
+#google-gmail1 = "*"
 # This project intentionally uses an old version of Hyper. See
 # https://github.com/Byron/google-apis-rs/issues/173 for more
 # information.
-hyper = "^0.10"
-hyper-rustls = "^0.6"
-serde = "^1.0"
-serde_json = "^1.0"
-yup-oauth2 = "^1.0"
-yew = 0.15
-wasm-bindgen = "0.2"
+#hyper = "^0.10"
+#hyper-rustls = "^0.6"
+
+
+log = "0.4"
+strum = "0.17"
+strum_macros = "0.17"
+serde = "1"
+serde_derive = "1"
+wasm-bindgen = "0.2.58"
+wasm-logger = "0.2"
+wee_alloc = { version = "0.4.4", optional = true }
+yew = "0.15"
 
 [dependencies.url]
 version = "2.1.0"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[dependencies.web-sys]
+version = "0.3.4"
+features = [
+  'KeyboardEvent',
+]
 
