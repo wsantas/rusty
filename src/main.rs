@@ -10,16 +10,6 @@
 mod task;
 #[cfg(test)] mod tests;
 
-extern crate hyper;
-extern crate hyper_rustls;
-extern crate yup_oauth2 as oauth2;
-extern crate google_gmail1 as gmail1;
-use gmail1::{Error, Scope};
-use std::default::Default;
-use oauth2::{Authenticator, DefaultAuthenticatorDelegate, ApplicationSecret, MemoryStorage, FlowType};
-use gmail1::Gmail;
-use std::env;
-
 use rocket::Rocket;
 use rocket::fairing::AdHoc;
 use rocket::request::{Form, FlashMessage};
@@ -28,6 +18,12 @@ use rocket_contrib::{templates::Template, serve::StaticFiles};
 use diesel::SqliteConnection;
 
 use task::{Task, Todo};
+use std::env;
+extern crate imap;
+extern crate native_tls;
+use native_tls::TlsConnector;
+
+extern crate google_signin;
 
 // This macro from `diesel_migrations` defines an `embedded_migrations` module
 // containing a function named `run`. This allows the example to be run and
@@ -96,43 +92,75 @@ fn hello(msg: Option<FlashMessage>, conn: DbConn) -> Template {
     })
 }
 
-fn gmail_connector_test() {
-    println!("Starting rusty");
+#[get("/")]
+fn gpl(msg: Option<FlashMessage>, conn: DbConn) -> Template {
+    Template::render("gpl", &match msg {
+        Some(ref msg) => Context::raw(&conn, Some((msg.name(), msg.msg()))),
+        None => Context::raw(&conn, None),
+    })
+}
 
-    let key = env::var("google_secret").unwrap();
-    let client_id = env::var("google_client_id").unwrap();
-    let mut secret: ApplicationSecret = Default::default();
-    secret.client_secret = key;
-    secret.client_id = client_id;
+struct GmailOAuth2 {
+    user: String,
+    access_token: String,
+}
 
-    let auth = Authenticator::new(&secret, DefaultAuthenticatorDelegate,
-                                  hyper::Client::with_connector(hyper::net::HttpsConnector::new(hyper_rustls::TlsClient::new())),
-                                  <MemoryStorage as Default>::default(), None);
-    let hub = Gmail::new(hyper::Client::with_connector(hyper::net::HttpsConnector::new(hyper_rustls::TlsClient::new())), auth);
-
-    println!("Starting rusty3");
-    let result = hub.users()
-        .messages_get("wsantas@gmail.com", "<398dc2a3d54f4413817308ca57778a34@prdphjobs01>").add_scope(Scope::Readonly)
-        .doit();
-    println!("Starting rusty4");
-    match result {
-        Err(e) => match e {
-            // The Error enum provides details about what exactly happened.
-            // You can also just use its `Debug`, `Display` or `Error` traits
-            Error::HttpError(_)
-            | Error::MissingAPIKey
-            | Error::MissingToken(_)
-            | Error::Cancelled
-            | Error::UploadSizeLimitExceeded(_, _)
-            | Error::Failure(_)
-            | Error::BadRequest(_)
-            | Error::FieldClash(_)
-            | Error::JsonDecodeError(_, _) => println!("{}", e),
-        },
-        Ok(res) => println!("Success: {:?}", res)
-
+impl imap::Authenticator for GmailOAuth2 {
+    type Response = String;
+    #[allow(unused_variables)]
+    fn process(&self, data: &[u8]) -> Self::Response {
+        format!(
+            "user={}\x01auth=Bearer {}\x01\x01",
+            self.user, self.access_token
+        )
     }
 }
+
+
+
+#[get("/")]
+fn fetch_inbox_top(msg: Option<FlashMessage>, conn: DbConn) -> Template {
+
+    let email = env::var("account_email_address").unwrap();;
+    let key = env::var("account_key").unwrap();;
+
+    let gmail_auth = GmailOAuth2 {
+        user: String::from("sombody@gmail.com"),
+        access_token: String::from("<access_token>"),
+    };
+    let domain = "imap.gmail.com";
+    let port = 993;
+    let socket_addr = (domain, port);
+    let ssl_connector = TlsConnector::builder().build().unwrap();
+    let client = imap::connect(socket_addr, domain, &ssl_connector).unwrap();
+
+    let mut imap_session = match client.authenticate("XOAUTH2", &gmail_auth) {
+        Ok(c) => c,
+        Err((e, _unauth_client)) => panic!("{}", e)
+    };
+
+    match imap_session.select("INBOX") {
+        Ok(mailbox) => println!("{}", mailbox),
+        Err(e) => println!("Error selecting INBOX: {}", e),
+    };
+
+    match imap_session.fetch("2", "body[text]") {
+        Ok(msgs) => {
+            for msg in &msgs {
+                print!("{:?}", msg);
+            }
+        }
+        Err(e) => println!("Error Fetching email 2: {}", e),
+    };
+
+    imap_session.logout().unwrap();
+
+    Template::render("hello", &match msg {
+        Some(ref msg) => Context::raw(&conn, Some((msg.name(), msg.msg()))),
+        None => Context::raw(&conn, None),
+    })
+}
+
 
 fn run_db_migrations(rocket: Rocket) -> Result<Rocket, Rocket> {
     let conn = DbConn::get_one(&rocket).expect("database connection");
@@ -152,7 +180,8 @@ fn rocket() -> Rocket {
         .mount("/", StaticFiles::from("static/"))
         .mount("/", routes![index])
         .mount("/todo", routes![new, toggle, delete])
-        .mount("/hello", routes![hello])
+        .mount("/fetch_inbox_top", routes![fetch_inbox_top])
+        .mount("/gpl", routes![gpl])
         .attach(Template::fairing())
 }
 
