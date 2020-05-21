@@ -23,8 +23,6 @@ extern crate imap;
 extern crate native_tls;
 use native_tls::TlsConnector;
 
-extern crate google_signin;
-
 // This macro from `diesel_migrations` defines an `embedded_migrations` module
 // containing a function named `run`. This allows the example to be run and
 // tested without any outside setup of the database.
@@ -98,6 +96,11 @@ fn gpl(msg: Option<FlashMessage>, conn: DbConn) -> Template {
         Some(ref msg) => Context::raw(&conn, Some((msg.name(), msg.msg()))),
         None => Context::raw(&conn, None),
     })
+}
+
+#[post("/", data = "<idtoken>")]
+fn tokensignin(idtoken: String) -> String {
+    format!("Your token: {}", idtoken)
 }
 
 struct GmailOAuth2 {
@@ -182,6 +185,7 @@ fn rocket() -> Rocket {
         .mount("/todo", routes![new, toggle, delete])
         .mount("/fetch_inbox_top", routes![fetch_inbox_top])
         .mount("/gpl", routes![gpl])
+        .mount("/tokensignin", routes![tokensignin])
         .attach(Template::fairing())
 }
 
