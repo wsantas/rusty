@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Rocket Todo Example</title>
+    <title>Rusty</title>
     <meta name="description" content="A todo application written in Rocket.">
     <meta name="author" content="Sergio Benitez">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,6 +12,9 @@
     <link rel="stylesheet" href="/css/skeleton.css">
     <link rel="stylesheet" href="/css/style.css">
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <meta name="google-signin-client_id" content="547401393466-2thhdq6uka9ljvuck0gadghc3o38ln0u.apps.googleusercontent.com">
+    <meta name="google-signin-scope" content="profile email">
 </head>
 <body>
 <div class="container">
@@ -19,6 +22,23 @@
 
     <div class="row">
         <h4>This is the GPL page</h4>
+        <div class="g-signin2" data-onsuccess="onSignIn"></div>
+        <script>
+            function onSignIn(googleUser) {
+                // Useful data for your client-side scripts:
+                var profile = googleUser.getBasicProfile();
+                console.log("ID: " + profile.getId()); // Don't send this directly to your server!
+                console.log('Full Name: ' + profile.getName());
+                console.log('Given Name: ' + profile.getGivenName());
+                console.log('Family Name: ' + profile.getFamilyName());
+                console.log("Image URL: " + profile.getImageUrl());
+                console.log("Email: " + profile.getEmail());
+
+                // The ID token you need to pass to your backend:
+                var id_token = googleUser.getAuthResponse().id_token;
+                console.log("ID Token: " + id_token);
+            }
+        </script>
     </div>
 </div>
 </body>

@@ -121,8 +121,8 @@ impl imap::Authenticator for GmailOAuth2 {
 #[get("/")]
 fn fetch_inbox_top(msg: Option<FlashMessage>, conn: DbConn) -> Template {
 
-    let email = env::var("account_email_address").unwrap();;
-    let key = env::var("account_key").unwrap();;
+    let email = env::var("account_email_address").unwrap();
+    let key = env::var("account_key").unwrap();
 
     let gmail_auth = GmailOAuth2 {
         user: String::from("sombody@gmail.com"),
