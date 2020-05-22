@@ -8,16 +8,19 @@
 #[macro_use] extern crate rocket_contrib;
 
 mod task;
+mod user;
 #[cfg(test)] mod tests;
 
-use rocket::Rocket;
+use rocket::{Rocket, Response, Request, response};
 use rocket::fairing::AdHoc;
 use rocket::request::{Form, FlashMessage};
-use rocket::response::{Flash, Redirect};
-use rocket_contrib::{templates::Template, serve::StaticFiles};
+use rocket::response::{Flash, Redirect, status, Responder};
+use rocket_contrib::{templates::Template, serve::StaticFiles, json::Json, json::JsonValue};
+use rocket::http::{ContentType, Status};
 use diesel::SqliteConnection;
 
 use task::{Task, Todo};
+use user::{User, UserForm};
 use std::env;
 extern crate imap;
 extern crate native_tls;
@@ -41,6 +44,21 @@ impl<'a, 'b> Context<'a, 'b> {
 
     pub fn raw(conn: &DbConn, msg: Option<(&'a str, &'b str)>) -> Context<'a, 'b> {
         Context{msg: msg, tasks: Task::all(conn)}
+    }
+}
+
+#[derive(Debug)]
+struct ApiResponse {
+    json: JsonValue,
+    status: Status,
+}
+
+impl<'r> Responder<'r> for ApiResponse {
+    fn respond_to(self, req: &Request) -> response::Result<'r> {
+        Response::build_from(self.json.respond_to(&req).unwrap())
+            .status(self.status)
+            .header(ContentType::JSON)
+            .ok()
     }
 }
 
@@ -98,9 +116,20 @@ fn gpl(msg: Option<FlashMessage>, conn: DbConn) -> Template {
     })
 }
 
-#[post("/", data = "<idtoken>")]
-fn tokensignin(idtoken: String) -> String {
-    format!("Your token: {}", idtoken)
+#[post("/", data = "<user_form>", format = "json")]
+fn tokensignin(user_form: Json<UserForm>,  conn: DbConn) -> ApiResponse {
+    format!("Success: {}", user_form.access_token);
+    if User::insert(user_form.into_inner(), &conn) {
+        ApiResponse {
+            json: json!({"status": "success"}),
+            status: Status::Ok,
+        }
+    } else {
+        ApiResponse {
+            json: json!({"status": "failed"}),
+            status: Status::Ok,
+        }
+    }
 }
 
 struct GmailOAuth2 {
