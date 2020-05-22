@@ -38,9 +38,9 @@ impl User {
         all_users.order(users::id.desc()).load::<User>(conn).unwrap()
     }
 
-    pub fn insert(user_form: UserForm, conn: &SqliteConnection) -> bool {
+    pub fn insertOrUpdate(user_form: UserForm, conn: &SqliteConnection) -> bool {
         let t = User { id: None, email: user_form.email, first_name: user_form.first_name, last_name: user_form.last_name, access_token: user_form.access_token };
-        diesel::insert_into(users::table).values(&t).execute(conn).is_ok()
+        diesel::replace_into(users::table).values(&t).execute(conn).is_ok()
     }
 
     pub fn delete_with_id(id: i32, conn: &SqliteConnection) -> bool {

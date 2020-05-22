@@ -14,7 +14,7 @@
     <link rel="icon" type="image/png" href="/images/favicon.png">
     <script src="https://apis.google.com/js/platform.js" async defer></script>
     <meta name="google-signin-client_id" content="547401393466-2thhdq6uka9ljvuck0gadghc3o38ln0u.apps.googleusercontent.com">
-    <meta name="google-signin-scope" content="profile email">
+    <meta name="google-signin-scope" content="profile email https://mail.google.com/">
 </head>
 <body>
 <div class="container">
