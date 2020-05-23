@@ -32,9 +32,9 @@
     <div>
         Negative Score: {{ sentiment_neg }}
     </div>
-    <div style="padding-top: 10%">
+    <pre style="padding-top: 10%">
         {{ body }}
-    </div>
+    </pre>
 </div>
 </body>
 </html>

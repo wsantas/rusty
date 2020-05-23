@@ -42,12 +42,14 @@
                     'access_token': access_token
                 }
 
+                function reqListener () {
+                    window.location.href = '/email_sentiment_form';
+                }
+
                 var xhr = new XMLHttpRequest();
+                xhr.addEventListener("load", reqListener);
                 xhr.open('POST', '/tokensignin');
                 xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-                xhr.onload = function() {
-                    console.log('Signed in as: ' + xhr.responseText);
-                };
                 xhr.send(JSON.stringify(user_form));
             }
         </script>
