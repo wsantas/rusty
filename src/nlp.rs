@@ -14,7 +14,6 @@ use std::env;
 pub fn check_sentiment(message: String) -> DetectSentimentResponse {
     let mut runtime = Runtime::new().unwrap();
     let client = ComprehendClient::new(Region::UsEast1);
-    let mut core = Core::new().unwrap();
     let detect_sentiment_request = DetectSentimentRequest {
         text: message,
         language_code: "en".parse().unwrap()

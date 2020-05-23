@@ -104,16 +104,16 @@ fn index(msg: Option<FlashMessage>, conn: DbConn) -> Template {
 }
 
 #[get("/")]
-fn hello(msg: Option<FlashMessage>, conn: DbConn) -> Template {
-    Template::render("hello", &match msg {
+fn gpl(msg: Option<FlashMessage>, conn: DbConn) -> Template {
+    Template::render("gpl", &match msg {
         Some(ref msg) => Context::raw(&conn, Some((msg.name(), msg.msg()))),
         None => Context::raw(&conn, None),
     })
 }
 
 #[get("/")]
-fn gpl(msg: Option<FlashMessage>, conn: DbConn) -> Template {
-    Template::render("gpl", &match msg {
+fn email_sentiment_form(msg: Option<FlashMessage>, conn: DbConn) -> Template {
+    Template::render("email_sentiment_form", &match msg {
         Some(ref msg) => Context::raw(&conn, Some((msg.name(), msg.msg()))),
         None => Context::raw(&conn, None),
     })
@@ -178,28 +178,16 @@ fn fetch_inbox_top(email: String, msg: Option<FlashMessage>, conn: DbConn) -> Te
         Err(e) => println!("Error selecting INBOX: {}", e),
     };
 
-    match imap_session.fetch("1", "body[text]") {
-        Ok(msgs) => {
-            for msg in &msgs {
-                print!("{:?}", msg);
-            }
-        }
-        Err(e) => println!("Error Fetching email 2: {}", e),
-    };
-
-    println!();
     let messages = imap_session.fetch("1000", "RFC822");
     let message = messages.iter().next().unwrap();
-
-
     // extract the message's body
-   let body = message.get(0).unwrap().body().expect("message did not have a body!");
-   let body = std::str::from_utf8(body)
+    let body = message.get(0).unwrap().body().expect("message did not have a body!");
+    let body = std::str::from_utf8(body)
         .expect("message was not valid utf-8")
         .to_string();
 
 
-   let sentiment = nlp::check_sentiment(body).sentiment_score.unwrap();
+    let sentiment = nlp::check_sentiment(body.clone()).sentiment_score.unwrap();
     println!("Positive Score: {}", sentiment.positive.unwrap());
     println!("Negative Score: {}", sentiment.negative.unwrap());
     println!("Mixed Score: {}", sentiment.mixed.unwrap());
@@ -209,10 +197,12 @@ fn fetch_inbox_top(email: String, msg: Option<FlashMessage>, conn: DbConn) -> Te
     imap_session.logout().unwrap();
 
     let mut map = HashMap::new();
-    map.insert("sentiment_pos", sentiment.positive.unwrap());
-    map.insert("sentiment_neu", sentiment.neutral.unwrap());
-    map.insert("sentiment_neg", sentiment.negative.unwrap());
-    map.insert("sentiment_mix", sentiment.mixed.unwrap());
+    map.insert("sentiment_pos", format!("{}", sentiment.positive.unwrap()));
+    map.insert("sentiment_neu", format!("{}", sentiment.neutral.unwrap()));
+    map.insert("sentiment_neg", format!("{}", sentiment.negative.unwrap()));
+    map.insert("sentiment_mix", format!("{}", sentiment.mixed.unwrap()));
+    map.insert("body", format!("{}", body.clone()));
+
     Template::render("sentiment", map)
 }
 
@@ -237,6 +227,7 @@ fn rocket() -> Rocket {
         .mount("/todo", routes![new, toggle, delete])
         .mount("/fetch_inbox_top", routes![fetch_inbox_top])
         .mount("/gpl", routes![gpl])
+        .mount("/email_sentiment_form", routes![email_sentiment_form])
         .mount("/tokensignin", routes![tokensignin])
         .attach(Template::fairing())
 }

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Rocket Todo Example</title>
+    <title>Rusty</title>
     <meta name="description" content="A todo application written in Rocket.">
     <meta name="author" content="Sergio Benitez">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,13 +12,27 @@
     <link rel="stylesheet" href="/css/skeleton.css">
     <link rel="stylesheet" href="/css/style.css">
     <link rel="icon" type="image/png" href="/images/favicon.png">
+    <script type="javascript">
+        function submit() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/tokensignin');
+            xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+            xhr.onload = function() {
+                console.log('Signed in as: ' + xhr.responseText);
+            };
+            xhr.send(JSON.stringify(user_form));
+        }
+    </script>
 </head>
 <body>
 <div class="container">
     <p><!--Nothing to see here --></p>
 
     <div class="row">
-        <h4>This is the hello page</h4>
+        <h4>Sentiment Form</h4>
+    </div>
+    <div class="row">
+        <label>Message Id:</label><input type="text" name="messageId"/>
     </div>
 </div>
 </body>

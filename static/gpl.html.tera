@@ -21,7 +21,7 @@
     <p><!--Nothing to see here --></p>
 
     <div class="row">
-        <h4>This is the GPL page</h4>
+        <h4>RUSTY</h4>
         <div class="g-signin2" data-onsuccess="onSignIn"></div>
         <script>
             function onSignIn(googleUser) {
