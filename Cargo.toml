@@ -16,6 +16,8 @@ native-tls = "0.2.4"
 time = "0.2.16"
 rusoto_core = "0.43.0"
 rusoto_comprehend = "0.43.0"
+tokio = "0.2.21"
+tokio-core = "0.1"
 
 [dev-dependencies]
 parking_lot = { version = "0.8", features = ["nightly"] }

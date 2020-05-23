@@ -35,8 +35,6 @@
                 console.log("Email: " + profile.getEmail());
 
                 var access_token = googleUser.wc.access_token;
-
-                debugger;
                 let user_form = {
                     'email': profile.getEmail(),
                     'first_name': profile.getFamilyName(),

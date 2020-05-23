@@ -9,6 +9,7 @@
 
 mod task;
 mod user;
+mod nlp;
 #[cfg(test)] mod tests;
 
 use rocket::{Rocket, Response, Request, response};
@@ -23,6 +24,8 @@ use task::{Task, Todo};
 use user::{User, UserForm};
 extern crate imap;
 extern crate native_tls;
+extern crate rusoto_core;
+
 use native_tls::TlsConnector;
 
 // This macro from `diesel_migrations` defines an `embedded_migrations` module
@@ -194,7 +197,7 @@ fn fetch_inbox_top(email: String, msg: Option<FlashMessage>, conn: DbConn) -> Te
         .expect("message was not valid utf-8")
         .to_string();
 
-   println!("{}", body.as_str());
+   println!("{}", nlp::check_sentiment(body).sentiment_score.unwrap().positive.unwrap());
 
 
     imap_session.logout().unwrap();
