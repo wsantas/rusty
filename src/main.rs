@@ -14,14 +14,16 @@ mod user;
 use rocket::{Rocket, Response, Request, response};
 use rocket::fairing::AdHoc;
 use rocket::request::{Form, FlashMessage};
-use rocket::response::{Flash, Redirect, status, Responder};
+use rocket::response::{Flash, Redirect, Responder};
 use rocket_contrib::{templates::Template, serve::StaticFiles, json::Json, json::JsonValue};
 use rocket::http::{ContentType, Status};
 use diesel::SqliteConnection;
 
 use task::{Task, Todo};
 use user::{User, UserForm};
-use std::env;
+extern crate imap;
+extern crate native_tls;
+use native_tls::TlsConnector;
 
 // This macro from `diesel_migrations` defines an `embedded_migrations` module
 // containing a function named `run`. This allows the example to be run and
@@ -116,7 +118,7 @@ fn gpl(msg: Option<FlashMessage>, conn: DbConn) -> Template {
 #[post("/", data = "<user_form>", format = "json")]
 fn tokensignin(user_form: Json<UserForm>,  conn: DbConn) -> ApiResponse {
     format!("Success: {}", user_form.access_token);
-    if User::insertOrUpdate(user_form.into_inner(), &conn) {
+    if User::insert_or_update(user_form.into_inner(), &conn) {
         ApiResponse {
             json: json!({"status": "success"}),
             status: Status::Ok,
@@ -129,16 +131,73 @@ fn tokensignin(user_form: Json<UserForm>,  conn: DbConn) -> ApiResponse {
     }
 }
 
+struct GmailOAuth2 {
+    user: String,
+    access_token: String,
+}
 
-
+impl imap::Authenticator for GmailOAuth2 {
+    type Response = String;
+    #[allow(unused_variables)]
+    fn process(&self, data: &[u8]) -> Self::Response {
+        format!(
+            "user={}\x01auth=Bearer {}\x01\x01",
+            self.user, self.access_token
+        )
+    }
+}
 
 #[get("/<email>")]
 fn fetch_inbox_top(email: String, msg: Option<FlashMessage>, conn: DbConn) -> Template {
 
     let users = User::all(&conn);
     let user = users.get(0).unwrap();
+    let at = &user.access_token;
 
-    let at = &user.access_token.to_owned();
+    let gmail_auth = GmailOAuth2 {
+        user: String::from(&email),
+        access_token: String::from(at)
+    };
+    let domain = "imap.gmail.com";
+    let port = 993;
+    let socket_addr = (domain, port);
+    let ssl_connector = TlsConnector::builder().build().unwrap();
+    let client = imap::connect(socket_addr, domain, &ssl_connector).unwrap();
+
+    let mut imap_session = match client.authenticate("XOAUTH2", &gmail_auth) {
+        Ok(c) => c,
+        Err((e, _unauth_client)) => panic!("{}", e)
+    };
+
+    match imap_session.select("INBOX") {
+        Ok(mailbox) => println!("{}", mailbox),
+        Err(e) => println!("Error selecting INBOX: {}", e),
+    };
+
+    match imap_session.fetch("2", "body[text]") {
+        Ok(msgs) => {
+            for msg in &msgs {
+                print!("{:?}", msg);
+            }
+        }
+        Err(e) => println!("Error Fetching email 2: {}", e),
+    };
+
+
+    let messages = imap_session.fetch("1", "RFC822");
+    let message = messages.iter().next().unwrap();
+
+
+    // extract the message's body
+   let body = message.get(0).unwrap().body().expect("message did not have a body!");
+   let body = std::str::from_utf8(body)
+        .expect("message was not valid utf-8")
+        .to_string();
+
+   println!("{}", body.as_str());
+
+
+    imap_session.logout().unwrap();
 
     Template::render("hello", &match msg {
         Some(ref msg) => Context::raw(&conn, Some((msg.name(), msg.msg()))),

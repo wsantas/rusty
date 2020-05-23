@@ -34,15 +34,14 @@
                 console.log("Image URL: " + profile.getImageUrl());
                 console.log("Email: " + profile.getEmail());
 
-                // The ID token you need to pass to your backend:
-                var id_token = googleUser.getAuthResponse().id_token;
-                console.log("ID Token: " + id_token);
+                var access_token = googleUser.wc.access_token;
 
+                debugger;
                 let user_form = {
                     'email': profile.getEmail(),
                     'first_name': profile.getFamilyName(),
                     'last_name': profile.getGivenName(),
-                    'access_token': id_token
+                    'access_token': access_token
                 }
 
                 var xhr = new XMLHttpRequest();

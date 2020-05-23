@@ -38,7 +38,7 @@ impl User {
         all_users.order(users::id.desc()).load::<User>(conn).unwrap()
     }
 
-    pub fn insertOrUpdate(user_form: UserForm, conn: &SqliteConnection) -> bool {
+    pub fn insert_or_update(user_form: UserForm, conn: &SqliteConnection) -> bool {
         let t = User { id: None, email: user_form.email, first_name: user_form.first_name, last_name: user_form.last_name, access_token: user_form.access_token };
         diesel::replace_into(users::table).values(&t).execute(conn).is_ok()
     }
