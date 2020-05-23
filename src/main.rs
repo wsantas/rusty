@@ -186,7 +186,7 @@ fn fetch_inbox_top(email: String, msg: Option<FlashMessage>, conn: DbConn) -> Te
         Err(e) => println!("Error Fetching email 2: {}", e),
     };
 
-
+    println!("");
     let messages = imap_session.fetch("1", "RFC822");
     let message = messages.iter().next().unwrap();
 

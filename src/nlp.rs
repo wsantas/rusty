@@ -7,6 +7,9 @@ use rusoto_core::Region;
 use self::tokio_core::reactor::Core;
 use self::tokio::runtime::Runtime;
 use std::ops::Deref;
+use std::env;
+
+
 
 pub fn check_sentiment(message: String) -> DetectSentimentResponse {
     let mut runtime = Runtime::new().unwrap();
