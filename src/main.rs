@@ -25,6 +25,7 @@ use user::{User, UserForm};
 extern crate imap;
 extern crate native_tls;
 extern crate rusoto_core;
+use std::collections::HashMap;
 
 use native_tls::TlsConnector;
 
@@ -177,7 +178,7 @@ fn fetch_inbox_top(email: String, msg: Option<FlashMessage>, conn: DbConn) -> Te
         Err(e) => println!("Error selecting INBOX: {}", e),
     };
 
-    match imap_session.fetch("2", "body[text]") {
+    match imap_session.fetch("1", "body[text]") {
         Ok(msgs) => {
             for msg in &msgs {
                 print!("{:?}", msg);
@@ -186,8 +187,8 @@ fn fetch_inbox_top(email: String, msg: Option<FlashMessage>, conn: DbConn) -> Te
         Err(e) => println!("Error Fetching email 2: {}", e),
     };
 
-    println!("");
-    let messages = imap_session.fetch("1", "RFC822");
+    println!();
+    let messages = imap_session.fetch("1000", "RFC822");
     let message = messages.iter().next().unwrap();
 
 
@@ -197,15 +198,22 @@ fn fetch_inbox_top(email: String, msg: Option<FlashMessage>, conn: DbConn) -> Te
         .expect("message was not valid utf-8")
         .to_string();
 
-   println!("{}", nlp::check_sentiment(body).sentiment_score.unwrap().positive.unwrap());
+
+   let sentiment = nlp::check_sentiment(body).sentiment_score.unwrap();
+    println!("Positive Score: {}", sentiment.positive.unwrap());
+    println!("Negative Score: {}", sentiment.negative.unwrap());
+    println!("Mixed Score: {}", sentiment.mixed.unwrap());
+    println!("Neutral Score: {}", sentiment.neutral.unwrap());
 
 
     imap_session.logout().unwrap();
 
-    Template::render("hello", &match msg {
-        Some(ref msg) => Context::raw(&conn, Some((msg.name(), msg.msg()))),
-        None => Context::raw(&conn, None),
-    })
+    let mut map = HashMap::new();
+    map.insert("sentiment_pos", sentiment.positive.unwrap());
+    map.insert("sentiment_neu", sentiment.neutral.unwrap());
+    map.insert("sentiment_neg", sentiment.negative.unwrap());
+    map.insert("sentiment_mix", sentiment.mixed.unwrap());
+    Template::render("sentiment", map)
 }
 
 
