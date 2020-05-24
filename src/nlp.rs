@@ -9,7 +9,11 @@ use self::tokio::runtime::Runtime;
 use std::ops::Deref;
 use std::env;
 
-
+#[derive(Deserialize)]
+pub struct EmailSentimentForm {
+    pub messageId: String,
+    pub mailbox: String
+}
 
 pub fn check_sentiment(message: String) -> DetectSentimentResponse {
     let mut runtime = Runtime::new().unwrap();

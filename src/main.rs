@@ -18,6 +18,7 @@ use rocket::request::{Form, FlashMessage};
 use rocket::response::{Flash, Redirect, Responder};
 use rocket_contrib::{templates::Template, serve::StaticFiles, json::Json, json::JsonValue};
 use rocket::http::{ContentType, Status};
+use rocket::response::content;
 use diesel::SqliteConnection;
 
 use task::{Task, Todo};
@@ -28,6 +29,7 @@ extern crate rusoto_core;
 use std::collections::HashMap;
 
 use native_tls::TlsConnector;
+use nlp::EmailSentimentForm;
 
 // This macro from `diesel_migrations` defines an `embedded_migrations` module
 // containing a function named `run`. This allows the example to be run and
@@ -150,10 +152,16 @@ impl imap::Authenticator for GmailOAuth2 {
         )
     }
 }
+type ID = usize;
+#[derive(Serialize, Deserialize)]
+struct Message {
+    id: Option<ID>,
+    contents: String
+}
 
-#[get("/<email>")]
-fn fetch_inbox_top(email: String, msg: Option<FlashMessage>, conn: DbConn) -> Template {
-
+#[post("/<email>", data = "<email_sentiment_form>", format = "json")]
+fn fetch_inbox_top(email: String, email_sentiment_form: Json<EmailSentimentForm>, conn: DbConn) -> Json<Message> {
+    let form = email_sentiment_form.into_inner();
     let users = User::all(&conn);
     let user = users.get(0).unwrap();
     let at = &user.access_token;
@@ -178,7 +186,7 @@ fn fetch_inbox_top(email: String, msg: Option<FlashMessage>, conn: DbConn) -> Te
         Err(e) => println!("Error selecting INBOX: {}", e),
     };
 
-    let messages = imap_session.fetch("1000", "RFC822");
+    let messages = imap_session.fetch(form.messageId.clone(), "RFC822");
     let message = messages.iter().next().unwrap();
     // extract the message's body
     let body = message.get(0).unwrap().body().expect("message did not have a body!");
@@ -196,14 +204,17 @@ fn fetch_inbox_top(email: String, msg: Option<FlashMessage>, conn: DbConn) -> Te
 
     imap_session.logout().unwrap();
 
-    let mut map = HashMap::new();
-    map.insert("sentiment_pos", format!("{}", sentiment.positive.unwrap()));
-    map.insert("sentiment_neu", format!("{}", sentiment.neutral.unwrap()));
-    map.insert("sentiment_neg", format!("{}", sentiment.negative.unwrap()));
-    map.insert("sentiment_mix", format!("{}", sentiment.mixed.unwrap()));
-    map.insert("body", format!("{}", body.clone()));
+    let mut record = "{ ".to_string()+ format!(" sentiment_pos: {}", sentiment.positive.unwrap()).as_ref() +" /n "+
+        format!("sentiment_neu: {}", sentiment.neutral.unwrap()).as_ref() +" /n "+
+        format!("sentiment_neg: {}", sentiment.negative.unwrap()).as_ref() +" /n "+
+        format!("sentiment_mix: {}", sentiment.mixed.unwrap()).as_ref() +" /n "+
+        format!("body: {}", body).as_ref() +" /n ";
 
-    Template::render("sentiment", map)
+    Json(Message {
+        id: Some(form.messageId.parse().unwrap()),
+        contents: record.clone()
+    })
+
 }
 
 
