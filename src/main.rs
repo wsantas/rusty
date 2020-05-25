@@ -206,16 +206,23 @@ fn fetch_inbox_top(email: String, email_sentiment_form: Json<EmailSentimentForm>
     let message = messages.iter().next().unwrap();
     // extract the message's body
     let body = message.get(0).unwrap().body().expect("message did not have a body!");
-    let body = std::str::from_utf8(body)
+    let mut body = std::str::from_utf8(body)
         .expect("message was not valid utf-8")
         .to_string();
+    let full_body = body.clone();
+    imap_session.logout().unwrap();
 
     let mut sentimentScoreResults = Vec::new();
     let mut sentimentScoreOptions = Vec::new();
     if body.len() < 5000 {
         sentimentScoreOptions.push(Some(nlp::check_sentiment(body.clone()).sentiment_score.unwrap()));
     } else {
-        sentimentScoreOptions.push(Some(nlp::check_sentiment(body[..5000].parse().unwrap()).sentiment_score.unwrap()));
+        let n = 5000;
+        while body.len() > 5000 {
+            sentimentScoreOptions.push(Some(nlp::check_sentiment(body[..5000].parse().unwrap()).sentiment_score.unwrap()));
+            body = body[5000..].parse().unwrap();
+        }
+        sentimentScoreOptions.push(Some(nlp::check_sentiment(body.parse().unwrap()).sentiment_score.unwrap()));
     }
 
     for x in &sentimentScoreOptions {
@@ -225,9 +232,6 @@ fn fetch_inbox_top(email: String, email_sentiment_form: Json<EmailSentimentForm>
             println!("Negative Score: {}", sentiment.negative.unwrap());
             println!("Mixed Score: {}", sentiment.mixed.unwrap());
             println!("Neutral Score: {}", sentiment.neutral.unwrap());
-
-
-            imap_session.logout().unwrap();
 
             let mut data = SentimentScoreCalc {
                 positive: sentiment.positive.unwrap(),
@@ -257,7 +261,7 @@ fn fetch_inbox_top(email: String, email_sentiment_form: Json<EmailSentimentForm>
             sentiment_neg: negative_score,
             sentiment_mix: mixed_score,
             sentiment_neu: neutral_score,
-            body: body,
+            body: full_body,
         };
 
         Json(Message {
