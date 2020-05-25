@@ -26,7 +26,11 @@ use user::{User, UserForm};
 extern crate imap;
 extern crate native_tls;
 extern crate rusoto_core;
-use std::collections::HashMap;
+extern crate json;
+use json::object;
+use std::collections::{HashMap, BTreeMap};
+
+
 
 use native_tls::TlsConnector;
 use nlp::EmailSentimentForm;
@@ -159,6 +163,7 @@ struct Message {
     contents: String
 }
 
+
 #[post("/<email>", data = "<email_sentiment_form>", format = "json")]
 fn fetch_inbox_top(email: String, email_sentiment_form: Json<EmailSentimentForm>, conn: DbConn) -> Json<Message> {
     let form = email_sentiment_form.into_inner();
@@ -204,15 +209,17 @@ fn fetch_inbox_top(email: String, email_sentiment_form: Json<EmailSentimentForm>
 
     imap_session.logout().unwrap();
 
-    let mut record = "{ ".to_string()+ format!(" sentiment_pos: {}", sentiment.positive.unwrap()).as_ref() +" /n "+
-        format!("sentiment_neu: {}", sentiment.neutral.unwrap()).as_ref() +" /n "+
-        format!("sentiment_neg: {}", sentiment.negative.unwrap()).as_ref() +" /n "+
-        format!("sentiment_mix: {}", sentiment.mixed.unwrap()).as_ref() +" /n "+
-        format!("body: {}", body).as_ref() +" /n ";
+    let mut data = object!{
+        sentiment_pos: sentiment.positive.unwrap().to_string(),
+        sentiment_neg: sentiment.negative.unwrap().to_string(),
+        sentiment_mix: sentiment.mixed.unwrap().to_string(),
+        sentiment_neu: sentiment.neutral.unwrap().to_string(),
+        body: body,
+    };
 
     Json(Message {
         id: Some(form.messageId.parse().unwrap()),
-        contents: record.clone()
+        contents: data.to_string()
     })
 
 }

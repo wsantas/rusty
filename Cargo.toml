@@ -18,6 +18,7 @@ rusoto_core = "0.43.0"
 rusoto_comprehend = "0.43.0"
 tokio = "0.2.21"
 tokio-core = "0.1"
+json = "0.12.4"
 
 [dev-dependencies]
 parking_lot = { version = "0.8", features = ["nightly"] }
