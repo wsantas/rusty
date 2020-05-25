@@ -215,7 +215,7 @@ fn fetch_inbox_top(email: String, email_sentiment_form: Json<EmailSentimentForm>
     if body.len() < 5000 {
         sentimentScoreOptions.push(Some(nlp::check_sentiment(body.clone()).sentiment_score.unwrap()));
     } else {
-        sentimentScoreOptions.push(Some(nlp::check_sentiment(body.clone()).sentiment_score.unwrap()));
+        sentimentScoreOptions.push(Some(nlp::check_sentiment(body[..5000].parse().unwrap()).sentiment_score.unwrap()));
     }
 
     for x in &sentimentScoreOptions {
