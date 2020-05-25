@@ -27,6 +27,8 @@ extern crate imap;
 extern crate native_tls;
 extern crate rusoto_core;
 extern crate json;
+extern crate rusoto_comprehend;
+
 use json::object;
 use std::collections::{HashMap, BTreeMap};
 
@@ -34,6 +36,8 @@ use std::collections::{HashMap, BTreeMap};
 
 use native_tls::TlsConnector;
 use nlp::EmailSentimentForm;
+use std::ptr::null;
+use rusoto_comprehend::SentimentScore;
 
 // This macro from `diesel_migrations` defines an `embedded_migrations` module
 // containing a function named `run`. This allows the example to be run and
@@ -163,6 +167,13 @@ struct Message {
     contents: String
 }
 
+struct SentimentScoreCalc {
+    positive: f32,
+    negative: f32,
+    neutral: f32,
+    mixed: f32
+}
+
 
 #[post("/<email>", data = "<email_sentiment_form>", format = "json")]
 fn fetch_inbox_top(email: String, email_sentiment_form: Json<EmailSentimentForm>, conn: DbConn) -> Json<Message> {
@@ -199,29 +210,66 @@ fn fetch_inbox_top(email: String, email_sentiment_form: Json<EmailSentimentForm>
         .expect("message was not valid utf-8")
         .to_string();
 
+    let mut sentimentScoreResults = Vec::new();
+    let mut sentimentScoreOptions = Vec::new();
+    if body.len() < 5000 {
+        sentimentScoreOptions.push(Some(nlp::check_sentiment(body.clone()).sentiment_score.unwrap()));
+    } else {
+        sentimentScoreOptions.push(Some(nlp::check_sentiment(body.clone()).sentiment_score.unwrap()));
+    }
 
-    let sentiment = nlp::check_sentiment(body.clone()).sentiment_score.unwrap();
-    println!("Positive Score: {}", sentiment.positive.unwrap());
-    println!("Negative Score: {}", sentiment.negative.unwrap());
-    println!("Mixed Score: {}", sentiment.mixed.unwrap());
-    println!("Neutral Score: {}", sentiment.neutral.unwrap());
+    for x in &sentimentScoreOptions {
+        if x.is_some() {
+            let sentiment = x.as_ref().unwrap();
+            println!("Positive Score: {}", sentiment.positive.unwrap());
+            println!("Negative Score: {}", sentiment.negative.unwrap());
+            println!("Mixed Score: {}", sentiment.mixed.unwrap());
+            println!("Neutral Score: {}", sentiment.neutral.unwrap());
 
 
-    imap_session.logout().unwrap();
+            imap_session.logout().unwrap();
 
-    let mut data = object!{
-        sentiment_pos: sentiment.positive.unwrap().to_string(),
-        sentiment_neg: sentiment.negative.unwrap().to_string(),
-        sentiment_mix: sentiment.mixed.unwrap().to_string(),
-        sentiment_neu: sentiment.neutral.unwrap().to_string(),
-        body: body,
-    };
+            let mut data = SentimentScoreCalc {
+                positive: sentiment.positive.unwrap(),
+                negative: sentiment.negative.unwrap(),
+                mixed: sentiment.mixed.unwrap(),
+                neutral: sentiment.neutral.unwrap()
+            };
+            sentimentScoreResults.push(data)
+        }
+    }
 
-    Json(Message {
-        id: Some(form.messageId.parse().unwrap()),
-        contents: data.to_string()
-    })
+    if sentimentScoreResults.len() > 0 {
+        let mut positive_score = 0.0;
+        let mut negative_score = 0.0;
+        let mut mixed_score = 0.0;
+        let mut neutral_score = 0.0;
+        for x in &sentimentScoreResults {
+            positive_score += x.positive;
+            negative_score += x.negative;
+            mixed_score += x.mixed;
+            neutral_score += x.neutral;
+        }
 
+
+        let mut data = object! {
+            sentiment_pos: positive_score,
+            sentiment_neg: negative_score,
+            sentiment_mix: mixed_score,
+            sentiment_neu: neutral_score,
+            body: body,
+        };
+
+        Json(Message {
+            id: Some(form.messageId.parse().unwrap()),
+            contents: data.to_string()
+        })
+    }else {
+        Json(Message {
+            id: Some(form.messageId.parse().unwrap()),
+            contents: "".parse().unwrap()
+        })
+    }
 }
 
 

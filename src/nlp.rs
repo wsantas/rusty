@@ -22,6 +22,6 @@ pub fn check_sentiment(message: String) -> DetectSentimentResponse {
         text: message,
         language_code: "en".parse().unwrap()
     };
-    let mut future = client.detect_sentiment(detect_sentiment_request);
+    let future = client.detect_sentiment(detect_sentiment_request);
     runtime.block_on(future).unwrap()
 }
