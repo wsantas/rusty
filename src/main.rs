@@ -35,7 +35,7 @@ use std::collections::{HashMap, BTreeMap};
 
 
 use native_tls::TlsConnector;
-use nlp::EmailSentimentForm;
+use nlp::{EmailSentimentForm, detect_key_phrases};
 use std::ptr::null;
 use rusoto_comprehend::SentimentScore;
 
@@ -176,7 +176,7 @@ struct SentimentScoreCalc {
 
 
 #[post("/<email>", data = "<email_sentiment_form>", format = "json")]
-fn fetch_inbox_top(email: String, email_sentiment_form: Json<EmailSentimentForm>, conn: DbConn) -> Json<Message> {
+fn fetch_message_analysis(email: String, email_sentiment_form: Json<EmailSentimentForm>, conn: DbConn) -> Json<Message> {
     let form = email_sentiment_form.into_inner();
     let users = User::all(&conn);
     let user = users.get(0).unwrap();
@@ -243,6 +243,8 @@ fn fetch_inbox_top(email: String, email_sentiment_form: Json<EmailSentimentForm>
         }
     }
 
+    let key_phrases_result = detect_key_phrases(full_body.clone());
+
     if sentimentScoreResults.len() > 0 {
         let mut positive_score = 0.0;
         let mut negative_score = 0.0;
@@ -261,7 +263,8 @@ fn fetch_inbox_top(email: String, email_sentiment_form: Json<EmailSentimentForm>
             sentiment_neg: negative_score,
             sentiment_mix: mixed_score,
             sentiment_neu: neutral_score,
-            body: full_body,
+            // key_phrases: key_phrases,
+            body: full_body
         };
 
         Json(Message {
@@ -295,7 +298,7 @@ fn rocket() -> Rocket {
         .mount("/", StaticFiles::from("static/"))
         .mount("/", routes![index])
         .mount("/todo", routes![new, toggle, delete])
-        .mount("/fetch_inbox_top", routes![fetch_inbox_top])
+        .mount("/fetch_message_analysis", routes![fetch_message_analysis])
         .mount("/gpl", routes![gpl])
         .mount("/email_sentiment_form", routes![email_sentiment_form])
         .mount("/tokensignin", routes![tokensignin])

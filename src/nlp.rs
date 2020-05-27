@@ -8,6 +8,7 @@ use self::tokio_core::reactor::Core;
 use self::tokio::runtime::Runtime;
 use std::ops::Deref;
 use std::env;
+use rusoto_comprehend::{DetectKeyPhrasesResponse, DetectKeyPhrasesRequest};
 
 #[derive(Deserialize)]
 pub struct EmailSentimentForm {
@@ -23,5 +24,16 @@ pub fn check_sentiment(message: String) -> DetectSentimentResponse {
         language_code: "en".parse().unwrap()
     };
     let future = client.detect_sentiment(detect_sentiment_request);
+    runtime.block_on(future).unwrap()
+}
+
+pub fn detect_key_phrases(message: String) -> DetectKeyPhrasesResponse {
+    let mut runtime = Runtime::new().unwrap();
+    let client = ComprehendClient::new(Region::UsEast1);
+    let detect_key_phrases_request = DetectKeyPhrasesRequest {
+        text: message,
+        language_code: "en".parse().unwrap()
+    };
+    let future = client.detect_key_phrases(detect_key_phrases_request);
     runtime.block_on(future).unwrap()
 }
