@@ -28,3 +28,5 @@ rand = "0.6"
 version = "0.4.4"
 default_features = false
 features = ["tera_templates", "diesel_sqlite_pool", "serve", "json"]
+
+cargo-features = ["rename-dependency"]

@@ -18,7 +18,6 @@ use rocket::request::{Form, FlashMessage};
 use rocket::response::{Flash, Redirect, Responder};
 use rocket_contrib::{templates::Template, serve::StaticFiles, json::Json, json::JsonValue};
 use rocket::http::{ContentType, Status};
-use rocket::response::content;
 use diesel::SqliteConnection;
 
 use task::{Task, Todo};
@@ -30,14 +29,9 @@ extern crate json;
 extern crate rusoto_comprehend;
 
 use json::object;
-use std::collections::{HashMap, BTreeMap};
-
-
 
 use native_tls::TlsConnector;
 use nlp::{EmailSentimentForm, detect_key_phrases};
-use std::ptr::null;
-use rusoto_comprehend::SentimentScore;
 
 // This macro from `diesel_migrations` defines an `embedded_migrations` module
 // containing a function named `run`. This allows the example to be run and
@@ -202,7 +196,7 @@ fn fetch_message_analysis(email: String, email_sentiment_form: Json<EmailSentime
         Err(e) => println!("Error selecting INBOX: {}", e),
     };
 
-    let messages = imap_session.fetch(form.messageId.clone(), "RFC822");
+    let messages = imap_session.fetch(form.message_id.clone(), "RFC822");
     let message = messages.iter().next().unwrap();
     // extract the message's body
     let body = message.get(0).unwrap().body().expect("message did not have a body!");
@@ -212,20 +206,19 @@ fn fetch_message_analysis(email: String, email_sentiment_form: Json<EmailSentime
     let full_body = body.clone();
     imap_session.logout().unwrap();
 
-    let mut sentimentScoreResults = Vec::new();
-    let mut sentimentScoreOptions = Vec::new();
+    let mut sentiment_score_results = Vec::new();
+    let mut sentiment_score_options = Vec::new();
     if body.len() < 5000 {
-        sentimentScoreOptions.push(Some(nlp::check_sentiment(body.clone()).sentiment_score.unwrap()));
+        sentiment_score_options.push(Some(nlp::check_sentiment(body.clone()).sentiment_score.unwrap()));
     } else {
-        let n = 5000;
         while body.len() > 5000 {
-            sentimentScoreOptions.push(Some(nlp::check_sentiment(body[..5000].parse().unwrap()).sentiment_score.unwrap()));
+            sentiment_score_options.push(Some(nlp::check_sentiment(body[..5000].parse().unwrap()).sentiment_score.unwrap()));
             body = body[5000..].parse().unwrap();
         }
-        sentimentScoreOptions.push(Some(nlp::check_sentiment(body.parse().unwrap()).sentiment_score.unwrap()));
+        sentiment_score_options.push(Some(nlp::check_sentiment(body.parse().unwrap()).sentiment_score.unwrap()));
     }
 
-    for x in &sentimentScoreOptions {
+    for x in &sentiment_score_options {
         if x.is_some() {
             let sentiment = x.as_ref().unwrap();
             println!("Positive Score: {}", sentiment.positive.unwrap());
@@ -233,24 +226,28 @@ fn fetch_message_analysis(email: String, email_sentiment_form: Json<EmailSentime
             println!("Mixed Score: {}", sentiment.mixed.unwrap());
             println!("Neutral Score: {}", sentiment.neutral.unwrap());
 
-            let mut data = SentimentScoreCalc {
+            let data = SentimentScoreCalc {
                 positive: sentiment.positive.unwrap(),
                 negative: sentiment.negative.unwrap(),
                 mixed: sentiment.mixed.unwrap(),
                 neutral: sentiment.neutral.unwrap()
             };
-            sentimentScoreResults.push(data)
+            sentiment_score_results.push(data)
         }
     }
 
-    let key_phrases_result = detect_key_phrases(full_body.clone());
+    // let key_phrases_result = detect_key_phrases(full_body.clone());
+    // let mut key_phrases = Vec::new();
+    // for key_phrase in key_phrases_result {
+    //     key_phrases.push(Some(key_phrase));
+    // }
 
-    if sentimentScoreResults.len() > 0 {
+    if sentiment_score_results.len() > 0 {
         let mut positive_score = 0.0;
         let mut negative_score = 0.0;
         let mut mixed_score = 0.0;
         let mut neutral_score = 0.0;
-        for x in &sentimentScoreResults {
+        for x in &sentiment_score_results {
             positive_score += x.positive;
             negative_score += x.negative;
             mixed_score += x.mixed;
@@ -258,7 +255,7 @@ fn fetch_message_analysis(email: String, email_sentiment_form: Json<EmailSentime
         }
 
 
-        let mut data = object! {
+        let data = object! {
             sentiment_pos: positive_score,
             sentiment_neg: negative_score,
             sentiment_mix: mixed_score,
@@ -268,12 +265,12 @@ fn fetch_message_analysis(email: String, email_sentiment_form: Json<EmailSentime
         };
 
         Json(Message {
-            id: Some(form.messageId.parse().unwrap()),
+            id: Some(form.message_id.parse().unwrap()),
             contents: data.to_string()
         })
     }else {
         Json(Message {
-            id: Some(form.messageId.parse().unwrap()),
+            id: Some(form.message_id.parse().unwrap()),
             contents: "".parse().unwrap()
         })
     }

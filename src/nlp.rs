@@ -4,15 +4,12 @@ extern crate tokio_core;
 extern crate tokio;
 use self::rusoto_comprehend::{DetectSentimentResponse, ComprehendClient, Comprehend, DetectSentimentRequest};
 use rusoto_core::Region;
-use self::tokio_core::reactor::Core;
 use self::tokio::runtime::Runtime;
-use std::ops::Deref;
-use std::env;
 use rusoto_comprehend::{DetectKeyPhrasesResponse, DetectKeyPhrasesRequest};
 
 #[derive(Deserialize)]
 pub struct EmailSentimentForm {
-    pub messageId: String,
+    pub message_id: String,
     pub mailbox: String
 }
 
