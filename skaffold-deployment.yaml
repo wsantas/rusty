@@ -1,0 +1,43 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: rusty
+spec:
+  rules:
+    - host: localhost
+      http:
+        paths:
+          - backend:
+              serviceName: rusty
+              servicePort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rusty
+spec:
+  ports:
+    - port: 80
+      targetPort: 8000
+  selector:
+    app: rusty
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rusty
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rusty
+  template:
+    metadata:
+      labels:
+        app: rusty
+    spec:
+      containers:
+        - name: rusty
+          image: docker.io/wsantas/rusty
+          ports:
+            - containerPort: 8000

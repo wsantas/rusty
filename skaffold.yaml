@@ -1,0 +1,19 @@
+apiVersion: skaffold/v1beta13
+kind: Config
+build:
+  artifacts:
+    - image: docker.io/wsantas/rusty
+      context: ./
+      docker: {}
+      bazel: null
+  googleCloudBuild: null
+deploy:
+  helm: null
+  kubectl:
+    manifests:
+      - skaffold-deployment.yaml
+portForward:
+  - resourceType: deployment
+    resourceName: rusty
+    port: 8080
+    localPort: 9000

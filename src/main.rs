@@ -12,7 +12,7 @@ mod user;
 mod nlp;
 #[cfg(test)] mod tests;
 
-use rocket::{Rocket, Response, Request, response};
+use rocket::{Rocket, Response, Request, response, Config};
 use rocket::fairing::AdHoc;
 use rocket::request::{Form, FlashMessage};
 use rocket::response::{Flash, Redirect, Responder};
@@ -32,6 +32,7 @@ use json::object;
 
 use native_tls::TlsConnector;
 use nlp::{EmailSentimentForm, detect_key_phrases};
+use rocket::config::Environment;
 
 // This macro from `diesel_migrations` defines an `embedded_migrations` module
 // containing a function named `run`. This allows the example to be run and
@@ -289,7 +290,13 @@ fn run_db_migrations(rocket: Rocket) -> Result<Rocket, Rocket> {
 }
 
 fn rocket() -> Rocket {
-    rocket::ignite()
+    let config = Config::build(Environment::Staging)
+        .address("127.0.0.1")
+        .port(8000)
+        .finalize()
+        .unwrap();
+
+    rocket::custom(config)
         .attach(DbConn::fairing())
         .attach(AdHoc::on_attach("Database Migrations", run_db_migrations))
         .mount("/", StaticFiles::from("static/"))
