@@ -34,21 +34,23 @@ pub struct UserForm {
 }
 
 impl User {
-    pub fn all(conn: &SqliteConnection) -> Vec<User> {
+    pub fn all(conn: &PgConnection) -> Vec<User> {
         all_users.order(users::id.desc()).load::<User>(conn).unwrap()
     }
 
-    pub fn insert_or_update(user_form: UserForm, conn: &SqliteConnection) -> bool {
-        let t = User { id: None, email: user_form.email, first_name: user_form.first_name, last_name: user_form.last_name, access_token: user_form.access_token };
-        diesel::replace_into(users::table).values(&t).execute(conn).is_ok()
+    // TODO: Fix
+    pub fn insert_or_update(user_form: UserForm, conn: &PgConnection) -> bool {
+        // let t = User { id: None, email: user_form.email, first_name: user_form.first_name, last_name: user_form.last_name, access_token: user_form.access_token };
+        // diesel::replace_into(users::table).values(&t).execute(conn).is_ok()
+        return false;
     }
 
-    pub fn delete_with_id(id: i32, conn: &SqliteConnection) -> bool {
+    pub fn delete_with_id(id: i32, conn: &PgConnection) -> bool {
         diesel::delete(all_users.find(id)).execute(conn).is_ok()
     }
 
     #[cfg(test)]
-    pub fn delete_all(conn: &SqliteConnection) -> bool {
+    pub fn delete_all(conn: &PgConnection) -> bool {
         diesel::delete(all_users).execute(conn).is_ok()
     }
 }

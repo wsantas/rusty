@@ -7,20 +7,18 @@
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate rocket_contrib;
 
-mod task;
 mod user;
 mod nlp;
 #[cfg(test)] mod tests;
 
 use rocket::{Rocket, Response, Request, response, Config};
 use rocket::fairing::AdHoc;
-use rocket::request::{Form, FlashMessage};
-use rocket::response::{Flash, Redirect, Responder};
+use rocket::request::{FlashMessage};
+use rocket::response::{Responder};
 use rocket_contrib::{templates::Template, serve::StaticFiles, json::Json, json::JsonValue};
-use rocket::http::{ContentType, Status};
-use diesel::SqliteConnection;
 
-use task::{Task, Todo};
+use rocket::http::{ContentType, Status};
+
 use user::{User, UserForm};
 extern crate imap;
 extern crate native_tls;
@@ -33,32 +31,33 @@ use json::object;
 use native_tls::TlsConnector;
 use nlp::{EmailSentimentForm, detect_key_phrases};
 use rocket::config::Environment;
+use diesel::Connection;
 
 // This macro from `diesel_migrations` defines an `embedded_migrations` module
 // containing a function named `run`. This allows the example to be run and
 // tested without any outside setup of the database.
 embed_migrations!();
 
-#[database("sqlite_database")]
-pub struct DbConn(SqliteConnection);
-
-#[derive(Debug, Serialize)]
-struct Context<'a, 'b>{ msg: Option<(&'a str, &'b str)>, tasks: Vec<Task> }
-
-impl<'a, 'b> Context<'a, 'b> {
-    pub fn err(conn: &DbConn, msg: &'a str) -> Context<'static, 'a> {
-        Context{msg: Some(("error", msg)), tasks: Task::all(conn)}
-    }
-
-    pub fn raw(conn: &DbConn, msg: Option<(&'a str, &'b str)>) -> Context<'a, 'b> {
-        Context{msg: msg, tasks: Task::all(conn)}
-    }
-}
+#[database("my_pg_db")]
+struct MyPgDatabase(diesel::PgConnection);
 
 #[derive(Debug)]
 struct ApiResponse {
     json: JsonValue,
     status: Status,
+}
+
+#[derive(Debug, Serialize)]
+struct Context<'a, 'b>{ msg: Option<(&'a str, &'b str)> }
+
+impl<'a, 'b> Context<'a, 'b> {
+    pub fn err(conn: &MyPgDatabase, msg: &'a str) -> Context<'static, 'a> {
+        Context{msg: Some(("error", msg))}
+    }
+
+    pub fn raw(conn: &MyPgDatabase, msg: Option<(&'a str, &'b str)>) -> Context<'a, 'b> {
+        Context{msg: msg}
+    }
 }
 
 impl<'r> Responder<'r> for ApiResponse {
@@ -70,46 +69,9 @@ impl<'r> Responder<'r> for ApiResponse {
     }
 }
 
-#[post("/", data = "<todo_form>")]
-fn new(todo_form: Form<Todo>, conn: DbConn) -> Flash<Redirect> {
-    let todo = todo_form.into_inner();
-    if todo.description.is_empty() {
-        Flash::error(Redirect::to("/"), "Description cannot be empty.")
-    } else if Task::insert(todo, &conn) {
-        Flash::success(Redirect::to("/"), "Todo successfully added.")
-    } else {
-        Flash::error(Redirect::to("/"), "Whoops! The server failed.")
-    }
-}
-
-#[put("/<id>")]
-fn toggle(id: i32, conn: DbConn) -> Result<Redirect, Template> {
-    if Task::toggle_with_id(id, &conn) {
-        Ok(Redirect::to("/"))
-    } else {
-        Err(Template::render("index", &Context::err(&conn, "Couldn't toggle task.")))
-    }
-}
-
-#[delete("/<id>")]
-fn delete(id: i32, conn: DbConn) -> Result<Flash<Redirect>, Template> {
-    if Task::delete_with_id(id, &conn) {
-        Ok(Flash::success(Redirect::to("/"), "Todo was deleted."))
-    } else {
-        Err(Template::render("index", &Context::err(&conn, "Couldn't delete task.")))
-    }
-}
 
 #[get("/")]
-fn index(msg: Option<FlashMessage>, conn: DbConn) -> Template {
-    Template::render("index", &match msg {
-        Some(ref msg) => Context::raw(&conn, Some((msg.name(), msg.msg()))),
-        None => Context::raw(&conn, None),
-    })
-}
-
-#[get("/")]
-fn gpl(msg: Option<FlashMessage>, conn: DbConn) -> Template {
+fn gpl(msg: Option<FlashMessage>, conn: MyPgDatabase) -> Template {
     Template::render("gpl", &match msg {
         Some(ref msg) => Context::raw(&conn, Some((msg.name(), msg.msg()))),
         None => Context::raw(&conn, None),
@@ -117,7 +79,7 @@ fn gpl(msg: Option<FlashMessage>, conn: DbConn) -> Template {
 }
 
 #[get("/")]
-fn email_sentiment_form(msg: Option<FlashMessage>, conn: DbConn) -> Template {
+fn email_sentiment_form(msg: Option<FlashMessage>, conn: MyPgDatabase) -> Template {
     Template::render("email_sentiment_form", &match msg {
         Some(ref msg) => Context::raw(&conn, Some((msg.name(), msg.msg()))),
         None => Context::raw(&conn, None),
@@ -125,7 +87,7 @@ fn email_sentiment_form(msg: Option<FlashMessage>, conn: DbConn) -> Template {
 }
 
 #[post("/", data = "<user_form>", format = "json")]
-fn tokensignin(user_form: Json<UserForm>,  conn: DbConn) -> ApiResponse {
+fn tokensignin(user_form: Json<UserForm>,  conn: MyPgDatabase) -> ApiResponse {
     format!("Success: {}", user_form.access_token);
     if User::insert_or_update(user_form.into_inner(), &conn) {
         ApiResponse {
@@ -171,7 +133,7 @@ struct SentimentScoreCalc {
 
 
 #[post("/<email>", data = "<email_sentiment_form>", format = "json")]
-fn fetch_message_analysis(email: String, email_sentiment_form: Json<EmailSentimentForm>, conn: DbConn) -> Json<Message> {
+fn fetch_message_analysis(email: String, email_sentiment_form: Json<EmailSentimentForm>, conn: MyPgDatabase) -> Json<Message> {
     let form = email_sentiment_form.into_inner();
     let users = User::all(&conn);
     let user = users.get(0).unwrap();
@@ -279,7 +241,7 @@ fn fetch_message_analysis(email: String, email_sentiment_form: Json<EmailSentime
 
 
 fn run_db_migrations(rocket: Rocket) -> Result<Rocket, Rocket> {
-    let conn = DbConn::get_one(&rocket).expect("database connection");
+    let conn = MyPgDatabase::get_one(&rocket).expect("database connection");
     match embedded_migrations::run(&*conn) {
         Ok(()) => Ok(rocket),
         Err(e) => {
@@ -297,11 +259,9 @@ fn rocket() -> Rocket {
         .unwrap();
 
     rocket::custom(config)
-        .attach(DbConn::fairing())
+        .attach(MyPgDatabase::fairing())
         .attach(AdHoc::on_attach("Database Migrations", run_db_migrations))
         .mount("/", StaticFiles::from("static/"))
-        .mount("/", routes![index])
-        .mount("/todo", routes![new, toggle, delete])
         .mount("/fetch_message_analysis", routes![fetch_message_analysis])
         .mount("/gpl", routes![gpl])
         .mount("/email_sentiment_form", routes![email_sentiment_form])

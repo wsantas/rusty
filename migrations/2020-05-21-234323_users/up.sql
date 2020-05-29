@@ -1,8 +1,8 @@
 -- Your SQL goes here
 create table users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email VARCHAR NOT NULL UNIQUE,
-    first_name VARCHAR NOT NULL,
-    last_name VARCHAR NOT NULL,
-    access_token VARCHAR NOT NULL
+    id SERIAL,
+    email VARCHAR(200),
+    first_name VARCHAR(200),
+    last_name VARCHAR(200),
+    access_token VARCHAR(500)
 )
